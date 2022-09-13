@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -31,5 +32,16 @@ public class ProductService {
         ProductResponse productResponse= new ProductResponse();
         modelMapper.map(optionalProduct.get(),productResponse);
         return productResponse;
+    }
+
+    public List<ProductResponse> getProducts() {
+        List<Product> products = productRepository.findAll();
+        List<ProductResponse> productResponses = products.stream().map(product -> {
+                    ProductResponse productResponse = new ProductResponse();
+                    modelMapper.map(product, productResponse);
+                    return productResponse;
+                })
+                .toList();
+        return productResponses;
     }
 }
