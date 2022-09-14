@@ -1,24 +1,27 @@
 package com.raiseup.orderservice.service;
 
-import com.raiseup.orderservice.dto.OrderLineItemsDto;
-import com.raiseup.orderservice.dto.OrderRequestDto;
-import com.raiseup.orderservice.dto.OrderResponseDto;
+import com.raiseup.orderservice.dto.*;
 import com.raiseup.orderservice.model.Order;
 import com.raiseup.orderservice.model.OrderLineItems;
 import com.raiseup.orderservice.repository.OrderLineItemsRepository;
 import com.raiseup.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderLineItemsRepository orderLineItemsRepository;
+    private final WebClient webClient;
 
     public List<OrderResponseDto> getOrders() {
        return  orderRepository.findAll().stream()
@@ -45,17 +48,31 @@ public class OrderService {
                 .build();
 //        This line tells hibernate that you have an entity to include
         order.getOrderLineItemsList().forEach(orderLineItems -> orderLineItems.setOrder(order));
+        List<String> skuCodes = order.getOrderLineItemsList().stream()
+                .map(OrderLineItems::getSkuCode).toList();
 
-//        TODO:Needs to check product if it is available or not?
+        String uri = "http://localhost:8083/api/inventory";
+        InventoryDto[] responses = webClient.get()
+                .uri(uri, uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodes).build())
+                .retrieve()
+                .bodyToMono(InventoryDto[].class)
+                .block();
 
-        Order savedOrder = orderRepository.save(order);
-        OrderResponseDto orderResponseDto = OrderResponseDto.builder()
-                .orderLineItemsDtoList(savedOrder.getOrderLineItemsList().stream()
-                        .map(this::orderLineItemsDtoMap)
-                        .toList()
-                )
-                .build();
-        return orderResponseDto;
+        boolean allMatch =Arrays.stream(responses)
+                .allMatch(InventoryDto::getIsInStock);
+
+        if(allMatch){
+
+            Order savedOrder = orderRepository.save(order);
+            OrderResponseDto orderResponseDto = OrderResponseDto.builder()
+                    .orderLineItemsDtoList(savedOrder.getOrderLineItemsList().stream()
+                            .map(this::orderLineItemsDtoMap)
+                            .toList()
+                    )
+                    .build();
+            return orderResponseDto;
+        }else throw new IllegalStateException("Product does not exist in stock");
+
     }
 
 
