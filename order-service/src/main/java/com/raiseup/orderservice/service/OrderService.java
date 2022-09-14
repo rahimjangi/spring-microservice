@@ -45,6 +45,9 @@ public class OrderService {
                 .build();
 //        This line tells hibernate that you have an entity to include
         order.getOrderLineItemsList().forEach(orderLineItems -> orderLineItems.setOrder(order));
+
+//        TODO:Needs to check product if it is available or not?
+
         Order savedOrder = orderRepository.save(order);
         OrderResponseDto orderResponseDto = OrderResponseDto.builder()
                 .orderLineItemsDtoList(savedOrder.getOrderLineItemsList().stream()
