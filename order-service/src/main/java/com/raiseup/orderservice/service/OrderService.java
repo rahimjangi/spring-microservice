@@ -21,7 +21,7 @@ import java.util.UUID;
 public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderLineItemsRepository orderLineItemsRepository;
-    private final WebClient webClient;
+    private final WebClient.Builder webClient;
 
     public List<OrderResponseDto> getOrders() {
        return  orderRepository.findAll().stream()
@@ -51,8 +51,8 @@ public class OrderService {
         List<String> skuCodes = order.getOrderLineItemsList().stream()
                 .map(OrderLineItems::getSkuCode).toList();
 
-        String uri = "http://localhost:8083/api/inventory";
-        InventoryDto[] responses = webClient.get()
+        String uri = "http://inventory-service/api/inventory";
+        InventoryDto[] responses = webClient.build().get()
                 .uri(uri, uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodes).build())
                 .retrieve()
                 .bodyToMono(InventoryDto[].class)
